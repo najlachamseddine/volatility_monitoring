@@ -34,9 +34,7 @@ pub async fn fetch_uniswapv3_prices(
             .unwrap_or(None)
         {
             println!("{:#?}", evt);
-            // tokio::spawn(async move {
             let _ = tx.send(evt).await.expect("send my message ");
-            // });
         }
     });
     Ok(())
