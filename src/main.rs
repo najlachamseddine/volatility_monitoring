@@ -20,19 +20,13 @@ const WETH_USDC_POOL: &str = "0xC6962004f452bE9203591991D15f6b388e09E8D0"; // ge
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    let (tx, mut rx): (Sender<f64>, Receiver<f64>) = mpsc::channel(32);
+    let (tx, mut rx): (Sender<SwapFilter>, Receiver<SwapFilter>) = mpsc::channel(32);
     
     let provider = Provider::<Ws>::connect(WSS_URL)
         .await
         .unwrap()
         .interval(Duration::from_millis(50u64));
     let client = Arc::new(provider);
-    // println!("{:#?}", client);
-    // let address = WETH_USDC_POOL.parse::<Address>().unwrap();
-    // let uniswapv3 = UniswapV3Pool::new(address, Arc::clone(&client));
-    // println!(">>>>>>>>>>>>>>>>> uniswapv3 address is {uniswapv3:?}");
-    // let last_block = client.get_block_number().await.unwrap();
-    // println!("{}", last_block);
 
     tokio::spawn(async move {
         keep_connection_alive(client).await;
@@ -41,7 +35,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     fetch_uniswapv3_prices(WSS_URL, WETH_USDC_POOL, tx).await?;
 
     while let Some(value) = rx.recv().await {
-        println!("Dequeued: {}", value);
+        println!("Dequeued: {}", value.sqrt_price_x96);
     }
 
     Ok(())

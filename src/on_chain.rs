@@ -12,7 +12,7 @@ use tokio::time::{timeout, Duration};
 pub async fn fetch_uniswapv3_prices(
     provider_url: &str,
     pool_address: &str,
-    tx: Sender<f64>,
+    tx: Sender<SwapFilter>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     println!("toto1");
     let provider = Provider::<Ws>::connect(provider_url)
@@ -35,7 +35,7 @@ pub async fn fetch_uniswapv3_prices(
         {
             println!("{:#?}", evt);
             // tokio::spawn(async move {
-            let _ = tx.send(2.0).await.expect("send my message ");
+            let _ = tx.send(evt).await.expect("send my message ");
             // });
         }
     });
