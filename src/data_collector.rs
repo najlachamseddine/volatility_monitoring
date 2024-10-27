@@ -1,6 +1,5 @@
 use crate::uniswap_v3_pool::*;
 use ethers::{
-    contract::stream::EventStream,
     providers::{Middleware, Provider, StreamExt, Ws},
     types::Address,
 };

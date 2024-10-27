@@ -1,21 +1,15 @@
 use std::error::Error;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::{Receiver, Sender};
-use volatility_monitoring::on_chain::*;
+use volatility_monitoring::data_collector::*;
 
-use ethers::{
-    contract::stream::EventStream,
-    providers::{Middleware, Provider, StreamExt, Ws},
-    types::Address,
-};
+use ethers::providers::{Middleware, Provider, Ws};
 use eyre::Result;
 use std::sync::Arc;
-use tokio::time::{timeout, Duration};
+use tokio::time::Duration;
 use volatility_monitoring::uniswap_v3_pool::*;
 
-// const WSS_URL: &str = "wss://arbitrum-mainnet.infura.io/ws/v3/9a36ca959f654f67b5cfbbea5f07d18f";
 const WSS_URL: &str = "wss://arb-mainnet.g.alchemy.com/v2/aZbQQOCV8cExXR7Y0mrzLz4rz1wLDqCB";
-// const WSS_URL: &str = "wss://mainnet.infura.io/ws/v3/c60b0bb42f8a4c6481ecd229eddaca27";
 const WETH_USDC_POOL: &str = "0xC6962004f452bE9203591991D15f6b388e09E8D0"; // get be requested with getPool from UniswapV3Factory
 
 #[tokio::main]

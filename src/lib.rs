@@ -1,3 +1,2 @@
-pub mod off_chain;
-pub mod on_chain;
+pub mod data_collector;
 pub mod uniswap_v3_pool;
