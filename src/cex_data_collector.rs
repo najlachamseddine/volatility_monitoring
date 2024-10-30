@@ -1,20 +1,22 @@
+use std::str::FromStr;
+
 use eyre::Result;
 use tokio::sync::mpsc::Sender;
 
 use async_trait::async_trait;
+use futures::StreamExt;
 use serde_json::Value;
 use tokio_tungstenite::{connect_async, tungstenite::client::IntoClientRequest};
-use futures::StreamExt;
+use rust_decimal::Decimal;
 
 #[async_trait]
 pub trait CexPool {
-    async fn fetch_cex_prices(&self, tx: Sender<Value>) -> Result<(), Box<dyn std::error::Error>>;
-    // async fn get_pool_address(&self) -> Address;
-    // async fn get_price(&self) -> Result<U256, Box<dyn std::error::Error>>;
+    async fn fetch_cex_prices(&self, tx: Sender<Decimal>) -> Result<(), Box<dyn std::error::Error>>;
+    fn process_data_event(&self, event: Value) -> Result<Decimal, Box<dyn std::error::Error>>;
 }
 
 pub struct BinanceApi {
-    base_url: String
+    base_url: String,
 }
 
 impl BinanceApi {
@@ -27,7 +29,7 @@ impl BinanceApi {
 
 #[async_trait]
 impl CexPool for BinanceApi {
-    async fn fetch_cex_prices(&self, tx: Sender<Value>) -> Result<(), Box<dyn std::error::Error>> {
+    async fn fetch_cex_prices(&self, tx: Sender<Decimal>) -> Result<(), Box<dyn std::error::Error>> {
         let request = self.base_url.to_string().into_client_request().unwrap();
         let (stream, _) = connect_async(request).await.unwrap();
         let (_, mut read) = stream.split();
@@ -35,58 +37,19 @@ impl CexPool for BinanceApi {
         while let Some(msg) = read.next().await {
             let message = msg?;
             let data: Value = serde_json::from_str(message.to_text()?)?;
-
-            let _ = tx.send(data).await;
-
-            // if let Some(kline) = data["k"].as_object() {
-            //     let open_time = kline["t"].as_i64().unwrap_or(0);
-            //     let open = kline["o"].as_str().unwrap_or("0.0");
-            //     let high = kline["h"].as_str().unwrap_or("0.0");
-            //     let low = kline["l"].as_str().unwrap_or("0.0");
-            //     let close = kline["c"].as_str().unwrap_or("0.0");
-
-            //     println!(
-            //         "Time: {}, Open: {}, High: {}, Low: {}, Close: {}",
-            //         open_time, open, high, low, close
-            //     );
-
-            // }
+            let price = self.process_data_event(data)?;
+            let _ = tx.send(price).await;
         }
 
         Ok(())
     }
+
+    // add option (some/none) and for the unwrap (ok and err)
+    fn process_data_event(&self, data: Value) -> Result<Decimal, Box<dyn std::error::Error>>  {
+        if let Some(kline) = data["k"].as_object() {
+            let close = Decimal::from_str(kline["c"].as_str().unwrap())?;
+            return Ok(close);
+        }
+            Err(format!("Error in processing data to retrieve price for binance").into())
+    }
 }
-
-// pub async fn fetch_cex_prices(
-//     provider_url: &str,
-//     tx: Sender<Value>,
-// ) -> Result<(), Box<dyn std::error::Error>> {
-//     // <Result<(), Box <dyn error>>
-//     // let url = Url::parse(provider_url).unwrap();
-//     let request = provider_url.into_client_request().unwrap();
-//     let (stream, _) = connect_async(request).await.unwrap();
-//     let (_, mut read) = stream.split();
-
-//     while let Some(msg) = read.next().await {
-//         let message = msg?;
-//         let data: Value = serde_json::from_str(message.to_text()?)?;
-
-//         let _ = tx.send(data).await;
-
-//         // if let Some(kline) = data["k"].as_object() {
-//         //     let open_time = kline["t"].as_i64().unwrap_or(0);
-//         //     let open = kline["o"].as_str().unwrap_or("0.0");
-//         //     let high = kline["h"].as_str().unwrap_or("0.0");
-//         //     let low = kline["l"].as_str().unwrap_or("0.0");
-//         //     let close = kline["c"].as_str().unwrap_or("0.0");
-
-//         //     println!(
-//         //         "Time: {}, Open: {}, High: {}, Low: {}, Close: {}",
-//         //         open_time, open, high, low, close
-//         //     );
-
-//         // }
-//     }
-
-//     Ok(())
-// }
