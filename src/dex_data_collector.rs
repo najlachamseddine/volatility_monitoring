@@ -9,17 +9,17 @@ use eyre::Result;
 use tokio::sync::mpsc::Sender;
 use tokio::time::{timeout, Duration};
 
-use alloy::primitives::{U256, U160};
+use crate::utils::{Pool, PriceData};
+use alloy::primitives::{U160, U256};
 use alloy::{
     providers::{Provider, ProviderBuilder, WsConnect},
     rpc::types::{BlockNumberOrTag, Filter},
     sol,
-    sol_types::SolEvent
+    sol_types::SolEvent,
 };
-use futures_util::stream::StreamExt;
-use crate::utils::Pool;
-use uniswap_v3_math::full_math::mul_div;
 use ethers::abi::Uint;
+use futures_util::stream::StreamExt;
+use uniswap_v3_math::full_math::mul_div;
 
 sol!(
     #[allow(missing_docs)]
@@ -30,43 +30,18 @@ sol!(
 
 #[async_trait]
 pub trait DexPool {
-    // async fn fetch_dex_prices(
-    //     &self,
-    //     tx: Sender<U256>,
-    //     last_block: U64,
-    // ) -> Result<(), Box<dyn std::error::Error>>;
     async fn fetch_dex_prices_alloy(
         &self,
-        tx: Sender<U256>,
+        tx: Sender<PriceData>,
     ) -> Result<(), Box<dyn std::error::Error>>;
     async fn process_data_event(&self, sqrt_price: U160) -> U256;
 }
 
 #[async_trait]
 impl DexPool for Pool {
-    // async fn fetch_dex_prices(
-    //     &self,
-    //     tx: Sender<U256>,
-    //     last_block: U64,
-    // ) -> Result<(), Box<dyn std::error::Error>> {
-    //     let events = self.event::<SwapFilter>().from_block(last_block);
-    //     let mut stream = events.stream().await.unwrap();
-    //     println!("FETCH DEX PRICES OF THE TRAIT!!");
-    //     // TO DO match X {OK or Err(e)} https://rishabh.io/building-a-rusty-websocket-server-4f3ba4b6b19c
-    //     while let Some(Ok(evt)) = timeout(Duration::from_secs(3600), stream.next())
-    //         .await
-    //         .unwrap_or(None)
-    //     {
-    //         println!("{:#?}", evt);
-    //         let price = self.process_data_event(evt).await;
-    //         let _ = tx.send(price).await.expect("send my message ");
-    //     }
-    //     Ok(())
-    // }
-
     async fn fetch_dex_prices_alloy(
         &self,
-        tx: Sender<U256>,
+        tx: Sender<PriceData>,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let ws = WsConnect::new(&self.rpc_url);
         let uniswap_token_address = self.addr;
@@ -81,9 +56,17 @@ impl DexPool for Pool {
         let mut stream = sub.into_stream();
 
         while let Some(log) = stream.next().await {
-            let UniswapV3Pool::Swap {sender, recipient, amount0, amount1, sqrtPriceX96, liquidity, tick} = log.log_decode()?.inner.data;
+            let UniswapV3Pool::Swap {
+                sender,
+                recipient,
+                amount0,
+                amount1,
+                sqrtPriceX96,
+                liquidity,
+                tick,
+            } = log.log_decode()?.inner.data;
             let price = self.process_data_event(sqrtPriceX96).await;
-            let _ = tx.send(price).await.expect("send price pool");
+            let _ = tx.send(PriceData::new(price, true)).await.expect("send price pool");
         }
 
         Ok(())
@@ -92,36 +75,12 @@ impl DexPool for Pool {
     // Result<f64, dyn Error>
     // check overflow
     async fn process_data_event(&self, sqrt_price_x96: U160) -> U256 {
-        let price = mul_div(U256::from(sqrt_price_x96) * U256::from(sqrt_price_x96), U256::from(10).pow(U256::from(18)), U256::from(1) << 192).unwrap();
+        let price = mul_div(
+            U256::from(sqrt_price_x96) * U256::from(sqrt_price_x96),
+            U256::from(10).pow(U256::from(18)),
+            U256::from(1) << 192,
+        )
+        .unwrap();
         price
     }
 }
-
-// pub async fn fetch_dex_prices(
-//     provider_url: &str,
-//     pool_address: &str,
-//     tx: Sender<SwapFilter>,
-// ) -> Result<(), Box<dyn std::error::Error>> {
-//     let provider = Provider::<Ws>::connect(provider_url)
-//         .await
-//         .unwrap()
-//         .interval(Duration::from_millis(50u64));
-//     let client = Arc::new(provider);
-//     let address = pool_address.parse::<Address>()?;
-//     let uniswapv3 = UniswapV3Pool::new(address, Arc::clone(&client));
-//     let last_block = client.get_block_number().await?;
-
-//     let events = uniswapv3.event::<SwapFilter>().from_block(last_block);
-//     let mut stream = events.stream().await.unwrap();
-
-//     // TO DO match X {OK or Err(e)} https://rishabh.io/building-a-rusty-websocket-server-4f3ba4b6b19c
-//     while let Some(Ok(evt)) = timeout(Duration::from_secs(3600), stream.next())
-//         .await
-//         .unwrap_or(None)
-//     {
-//         // println!("{:#?}", evt);
-//         let _ = tx.send(evt).await.expect("send my message ");
-//     }
-
-//     Ok(())
-// }
