@@ -37,7 +37,7 @@ pub trait DexPool {
     // ) -> Result<(), Box<dyn std::error::Error>>;
     async fn fetch_dex_prices_alloy(
         &self,
-        tx: Sender<String>,
+        tx: Sender<U256>,
     ) -> Result<(), Box<dyn std::error::Error>>;
     async fn process_data_event(&self, sqrt_price: U160) -> U256;
 }
@@ -66,7 +66,7 @@ impl DexPool for Pool {
 
     async fn fetch_dex_prices_alloy(
         &self,
-        tx: Sender<String>,
+        tx: Sender<U256>,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let ws = WsConnect::new(&self.rpc_url);
         let uniswap_token_address = self.addr;
@@ -82,10 +82,8 @@ impl DexPool for Pool {
 
         while let Some(log) = stream.next().await {
             let UniswapV3Pool::Swap {sender, recipient, amount0, amount1, sqrtPriceX96, liquidity, tick} = log.log_decode()?.inner.data;
-            println!("Uniswap token logs {}", sqrtPriceX96);
             let price = self.process_data_event(sqrtPriceX96).await;
-            println!("PRICE !!! {}", price);
-            let _ = tx.send("toto".to_string()).await.expect("send my message ");
+            let _ = tx.send(price).await.expect("send price pool");
         }
 
         Ok(())
@@ -94,15 +92,7 @@ impl DexPool for Pool {
     // Result<f64, dyn Error>
     // check overflow
     async fn process_data_event(&self, sqrt_price_x96: U160) -> U256 {
-        let q192 = U256::from(1) << 192;
-        // let sqrt_price_x96 = event.sqrt_price_x96;
-        // // let q96_big = BigDecimal::from_str(&q192.to_string()).unwrap();
-        // // let sqrt_price =
-        // //     BigDecimal::from_str(&(sqrt_price_x96 * sqrt_price_x96).to_string()).unwrap();
-        // // let price = q96_big / sqrt_price;
-        // // println!("q192 {} ", q192);
-        // // let price = (sqrt_price_x96 * sqrt_price_x96) >> (96 * 2);
-        let price = mul_div(U256::from(sqrt_price_x96 * sqrt_price_x96), U256::from(10).pow(U256::from(18)), q192).unwrap();
+        let price = mul_div(U256::from(sqrt_price_x96) * U256::from(sqrt_price_x96), U256::from(10).pow(U256::from(18)), U256::from(1) << 192).unwrap();
         price
     }
 }

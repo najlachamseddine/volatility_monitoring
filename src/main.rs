@@ -27,7 +27,7 @@ const TIME_WINDOW: i32 = 360;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    let (tx, mut rx): (Sender<String>, Receiver<String>) = mpsc::channel(32);
+    let (tx, mut rx): (Sender<U256>, Receiver<U256>) = mpsc::channel(32);
     let (tx2, mut rx2): (Sender<Decimal>, Receiver<Decimal>) = mpsc::channel(32);
     let mut prices: Vec<f64> = Vec::new();
 
