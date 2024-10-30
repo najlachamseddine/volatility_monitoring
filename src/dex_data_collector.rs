@@ -1,23 +1,15 @@
 use crate::uniswap_v3_pool::*;
 use alloy_pubsub::PubSubFrontend;
 use async_trait::async_trait;
-// use ethers::{
-//     providers::{Provider, StreamExt, Ws},
-//     types::{U256, U64},
-// };
 use eyre::Result;
 use tokio::sync::mpsc::Sender;
-use tokio::time::{timeout, Duration};
-
 use crate::utils::{Pool, PriceData};
 use alloy::primitives::{U160, U256};
 use alloy::{
     providers::{Provider, ProviderBuilder, WsConnect},
     rpc::types::{BlockNumberOrTag, Filter},
     sol,
-    sol_types::SolEvent,
 };
-use ethers::abi::Uint;
 use futures_util::stream::StreamExt;
 use uniswap_v3_math::full_math::mul_div;
 
@@ -66,14 +58,15 @@ impl DexPool for Pool {
                 tick,
             } = log.log_decode()?.inner.data;
             let price = self.process_data_event(sqrtPriceX96).await;
-            let _ = tx.send(PriceData::new(price, true)).await.expect("send price pool");
+            let _ = tx
+                .send(PriceData::new(price, true))
+                .await
+                .expect("send price pool");
         }
 
         Ok(())
     }
 
-    // Result<f64, dyn Error>
-    // check overflow
     async fn process_data_event(&self, sqrt_price_x96: U160) -> U256 {
         let price = mul_div(
             U256::from(sqrt_price_x96) * U256::from(sqrt_price_x96),
