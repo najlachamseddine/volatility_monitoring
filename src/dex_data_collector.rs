@@ -1,5 +1,3 @@
-use crate::uniswap_v3_pool::*;
-use alloy_pubsub::PubSubFrontend;
 use async_trait::async_trait;
 use eyre::Result;
 use tokio::sync::mpsc::Sender;
@@ -22,7 +20,7 @@ sol!(
 
 #[async_trait]
 pub trait DexPool {
-    async fn fetch_dex_prices_alloy(
+    async fn fetch_dex_prices(
         &self,
         tx: Sender<PriceData>,
     ) -> Result<(), Box<dyn std::error::Error>>;
@@ -31,7 +29,7 @@ pub trait DexPool {
 
 #[async_trait]
 impl DexPool for Pool {
-    async fn fetch_dex_prices_alloy(
+    async fn fetch_dex_prices(
         &self,
         tx: Sender<PriceData>,
     ) -> Result<(), Box<dyn std::error::Error>> {

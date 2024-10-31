@@ -1,43 +1,91 @@
+use alloy::primitives::address;
+use eyre::Result;
+use std::collections::VecDeque;
 use std::error::Error;
+use std::sync::Arc;
+use std::sync::Mutex;
+use std::time::Duration;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::{Receiver, Sender};
 use volatility_monitoring::cex_data_collector::*;
 use volatility_monitoring::dex_data_collector::*;
-use eyre::Result;
-use alloy::primitives::address;
-use volatility_monitoring::utils::{Pool, PriceData}; 
+use volatility_monitoring::server::{compute_deviation, compute_ln_return};
+use volatility_monitoring::utils::{Pool, PriceData};
+use chrono::prelude::*;
 
-const WSS_URL: &str = "wss://arb-mainnet.g.alchemy.com/v2/aZbQQOCV8cExXR7Y0mrzLz4rz1wLDqCB";
+const ARB_WSS_URL: &str = "wss://arb-mainnet.g.alchemy.com/v2/aZbQQOCV8cExXR7Y0mrzLz4rz1wLDqCB";
+const BASE_WSS_URL: &str = "wss://base-mainnet.g.alchemy.com/v2/aZbQQOCV8cExXR7Y0mrzLz4rz1wLDqCB";
 const WETH_USDC_POOL_UNISWAP: &str = "0xC6962004f452bE9203591991D15f6b388e09E8D0";
 const BINANCE_WSS_URL: &str = "wss://stream.binance.com:9443/ws/ethusdc@kline_1s";
-const TIME_WINDOW: i32 = 360;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     let (tx, mut rx): (Sender<PriceData>, Receiver<PriceData>) = mpsc::channel(32);
     let tx_clone = tx.clone();
+    let tx_clone_two = tx.clone();
+    let period = 360;
+    let interval = Duration::from_secs(60);
+    let prices_in_minute = Arc::new(Mutex::new(Vec::new()));
+    let mut prices_in_period: Vec<f64> = Vec::new();
+    let ln_returns = Arc::new(Mutex::new(VecDeque::new()));
 
-    let uniswap_token_pool = Pool::new(address!("C6962004f452bE9203591991D15f6b388e09E8D0"), WSS_URL.to_string());
+    let uniswap_token_pool = Pool::new(
+        address!("C6962004f452bE9203591991D15f6b388e09E8D0"),
+        ARB_WSS_URL.to_string(),
+    );
+    let sushiswap_token_pool = Pool::new(
+        address!("57713F7716e0b0F65ec116912F834E49805480d2"),
+        BASE_WSS_URL.to_string(),
+    );
+    tokio::spawn(async move {
+        let _ = uniswap_token_pool.fetch_dex_prices(tx).await;
+    });
 
     tokio::spawn(async move {
-        let _ = uniswap_token_pool.fetch_dex_prices_alloy(tx).await;
+        let _ = sushiswap_token_pool.fetch_dex_prices(tx_clone).await;
     });
 
     let binance_api = BinanceApi::new(BINANCE_WSS_URL);
     tokio::spawn(async move {
-        let _ = binance_api.fetch_cex_prices(tx_clone).await;
+        let _ = binance_api.fetch_cex_prices(tx_clone_two).await;
+    });
+
+    let prices_minutes_clone = prices_in_minute.clone();
+    tokio::spawn(async move {
+        loop {
+            println!("--------Waiting for one minute to elapse--------");
+            tokio::time::sleep(interval).await;
+            let mut p = prices_minutes_clone.lock().unwrap();
+            let price_t: f64 = p.iter().sum::<f64>() / (p.len() as f64);
+            p.clear();
+            prices_in_period.push(price_t);
+            if let Some(price_t_1) = prices_in_period.last() {
+                let ln_price_t = compute_ln_return(*price_t_1, price_t);
+                let mut ln_ret = ln_returns.lock().unwrap();
+                if ln_ret.len() == period {
+                    ln_ret.pop_front();
+                }
+                ln_ret.push_back(ln_price_t);
+                let variance = compute_deviation(ln_ret);
+                println!(
+                    "--------New Deviation At {:#?}; Estimated volatility: {}--------",
+                    Local::now(),
+                    variance
+                );
+            } else {
+                continue;
+            }
+        }
     });
 
     while let Some(value) = rx.recv().await {
-        println!("Dequeued uniswapv3: {:?}", value);
+        println!("Dequeued price CEX or DEX: {:?}", value);
+        prices_in_minute
+            .clone()
+            .lock()
+            .unwrap()
+            .push(f64::from(value.price));
     }
-
-    // while let Some(value) = rx.recv().await {
-    // if start_time.elapsed() < period {
-
-    // }
-    // }
 
     Ok(())
 }
-

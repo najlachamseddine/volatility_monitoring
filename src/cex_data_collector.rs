@@ -1,9 +1,7 @@
 use std::str::FromStr;
-
 use alloy::primitives::U256;
 use eyre::Result;
 use tokio::sync::mpsc::Sender;
-
 use async_trait::async_trait;
 use futures::StreamExt;
 use serde_json::Value;
