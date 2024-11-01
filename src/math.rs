@@ -1,5 +1,5 @@
 use std::collections::VecDeque;
-use std::sync::{Arc, MutexGuard};
+use std::sync::MutexGuard;
 
 pub fn compute_mean(prices: &[f64]) -> f64 {
     let sum: f64 = prices.iter().sum();

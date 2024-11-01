@@ -1,6 +1,3 @@
-use async_trait::async_trait;
-use eyre::Result;
-use tokio::sync::mpsc::Sender;
 use crate::utils::{Pool, PriceData};
 use alloy::primitives::{U160, U256};
 use alloy::{
@@ -8,7 +5,11 @@ use alloy::{
     rpc::types::{BlockNumberOrTag, Filter},
     sol,
 };
+use async_trait::async_trait;
+use eyre::Result;
 use futures_util::stream::StreamExt;
+use tokio::sync::mpsc::Sender;
+use tracing::{error, info};
 use uniswap_v3_math::full_math::mul_div;
 
 sol!(
@@ -24,7 +25,10 @@ pub trait DexPool {
         &self,
         tx: Sender<PriceData>,
     ) -> Result<(), Box<dyn std::error::Error>>;
-    async fn process_data_event(&self, sqrt_price: U160) -> U256;
+    fn process_data_event(
+        &self,
+        sqrt_price: U160,
+    ) -> Result<U256, Box<dyn std::error::Error + Send>>;
 }
 
 #[async_trait]
@@ -47,31 +51,36 @@ impl DexPool for Pool {
 
         while let Some(log) = stream.next().await {
             let UniswapV3Pool::Swap {
-                sender,
-                recipient,
-                amount0,
-                amount1,
                 sqrtPriceX96,
-                liquidity,
-                tick,
+                ..
             } = log.log_decode()?.inner.data;
-            let price = self.process_data_event(sqrtPriceX96).await;
-            let _ = tx
-                .send(PriceData::new(price, true))
-                .await
-                .expect("send price pool");
+            match self.process_data_event(sqrtPriceX96) {
+                Ok(price) => {
+                    let body = tx.send(PriceData::new(price, true)).await;
+                    match body {
+                        Ok(body) => info!("Data sent through channel {:?}", body),
+                        Err(e) => error!("Channel error: {}", e),
+                    };
+                }
+                Err(e) => return Err(e),
+            }
         }
 
         Ok(())
     }
 
-    async fn process_data_event(&self, sqrt_price_x96: U160) -> U256 {
+    fn process_data_event(
+        &self,
+        sqrt_price_x96: U160,
+    ) -> Result<U256, Box<dyn std::error::Error + Send>> {
         let price = mul_div(
             U256::from(sqrt_price_x96) * U256::from(sqrt_price_x96),
             U256::from(10).pow(U256::from(18)),
             U256::from(1) << 192,
-        )
-        .unwrap();
-        price
+        );
+        match price {
+            Ok(p) => Ok(p),
+            Err(e) => Err(Box::new(e)),
+        }
     }
 }

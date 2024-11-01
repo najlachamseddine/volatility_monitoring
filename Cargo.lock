@@ -5067,6 +5067,7 @@ dependencies = [
  "tokio",
  "tokio-retry",
  "tokio-tungstenite 0.24.0",
+ "tracing",
  "uniswap_v3_math",
  "url",
 ]
