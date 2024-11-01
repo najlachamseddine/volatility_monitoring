@@ -41,7 +41,25 @@ cargo run
 Exact estimates start to displaying after 3 minutes approximately.
 
 ```
+--------New interval: Current Volatility Estimation: 0.1000%--------
 
+--------New interval: Current Volatility Estimation: 0.1000%--------
 
+--------New interval: Current Volatility Estimation: 0.1000%--------
 
+--------2024-11-01T16:06:34.451641983+00:00 New Estimated Volatility: 1.7670% --------
+
+--------New interval: Current Volatility Estimation: 1.7670%--------
+
+--------2024-11-01T16:07:34.453594465+00:00 New Estimated Volatility: 1.7592% --------
+
+--------New interval: Current Volatility Estimation: 1.7592%--------
+
+--------2024-11-01T16:08:34.454523937+00:00 New Estimated Volatility: 1.8718% --------
+
+--------New interval: Current Volatility Estimation: 1.8718%--------
+
+--------2024-11-01T16:09:34.456318587+00:00 New Estimated Volatility: 1.8879% --------
+
+--------New interval: Current Volatility Estimation: 1.8879%--------
 ```
