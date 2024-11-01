@@ -21,35 +21,12 @@ const BINANCE_WSS_URL: &str = "wss://stream.binance.com:9443/ws/ethusdc@kline_1s
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     let (tx, mut rx): (Sender<PriceData>, Receiver<PriceData>) = mpsc::channel(32);
-    // let tx_clone = tx.clone();
-    // let tx_clone_two = tx.clone();
     let period = 360;
     let interval = Duration::from_secs(60);
     let prices_in_minute = Arc::new(Mutex::new(Vec::new()));
     let mut prices_in_period: Vec<f64> = Vec::new();
     let ln_returns = Arc::new(Mutex::new(VecDeque::new()));
     let mut previous_price = f64::from(-1);
-
-    // let uniswap_token_pool = Pool::new(
-    //     address!("C6962004f452bE9203591991D15f6b388e09E8D0"),
-    //     ARB_WSS_URL.to_string(),
-    // );
-    // let sushiswap_token_pool = Pool::new(
-    //     address!("57713F7716e0b0F65ec116912F834E49805480d2"),
-    //     BASE_WSS_URL.to_string(),
-    // );
-    // tokio::spawn(async move {
-    //     let _ = uniswap_token_pool.fetch_dex_prices(tx).await;
-    // });
-
-    // tokio::spawn(async move {
-    //     let _ = sushiswap_token_pool.fetch_dex_prices(tx_clone).await;
-    // });
-
-    // let binance_api = BinanceApi::new(BINANCE_WSS_URL);
-    // tokio::spawn(async move {
-    //     let _ = binance_api.fetch_cex_prices(tx_clone_two).await;
-    // });
 
     set_up(tx).await?;
 
@@ -75,11 +52,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     }
                     ln_ret.push_back(ln_price_t);
                     let variance = 360f64.sqrt() * compute_deviation(ln_ret);
+                    println!("-------------------------------------------------------------------");
                     println!(
-                        "--------New Deviation At {:#?}; Estimated volatility: {}% --------",
+                        "New Deviation At {:#?}; Estimated volatility: {}%",
                         Local::now(),
                         variance * 100f64
                     );
+                    println!("-------------------------------------------------------------------");
                     previous_price = price_t;
                     prices_in_period.push(price_t);
                     println!("PRICE AT T ADDED  {:#?} ", prices_in_period);
@@ -88,7 +67,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     previous_price = price_t;
                     prices_in_period.push(price_t);
                     println!("PRICE AT T ADDED  {:#?} ", prices_in_period);
-                    // continue;
                 }
             }
         }
@@ -112,21 +90,21 @@ async fn set_up(tx: Sender<PriceData>) -> Result<(), Box<dyn Error>> {
     let tx_clone = tx.clone();
     let tx_clone_two = tx.clone();
 
-    let uniswap_token_pool = Pool::new(
-        address!("C6962004f452bE9203591991D15f6b388e09E8D0"),
-        ARB_WSS_URL.to_string(),
-    );
-    let sushiswap_token_pool = Pool::new(
-        address!("57713F7716e0b0F65ec116912F834E49805480d2"),
-        BASE_WSS_URL.to_string(),
-    );
-    tokio::spawn(async move {
-        let _ = uniswap_token_pool.fetch_dex_prices(tx).await;
-    });
+    // let uniswap_token_pool = Pool::new(
+    //     address!("C6962004f452bE9203591991D15f6b388e09E8D0"),
+    //     ARB_WSS_URL.to_string(),
+    // );
+    // let sushiswap_token_pool = Pool::new(
+    //     address!("57713F7716e0b0F65ec116912F834E49805480d2"),
+    //     BASE_WSS_URL.to_string(),
+    // );
+    // tokio::spawn(async move {
+    //     let _ = uniswap_token_pool.fetch_dex_prices(tx).await;
+    // });
 
-    tokio::spawn(async move {
-        let _ = sushiswap_token_pool.fetch_dex_prices(tx_clone).await;
-    });
+    // tokio::spawn(async move {
+    //     let _ = sushiswap_token_pool.fetch_dex_prices(tx_clone).await;
+    // });
 
     let binance_api = BinanceApi::new(BINANCE_WSS_URL);
     tokio::spawn(async move {
