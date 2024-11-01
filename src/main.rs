@@ -60,10 +60,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         );
                         current_volatility_estimation = variance * 100.0;
                     }
-                    // previous_price = price_t;
-                 } // else {
-                    // previous_price = price_t;
-                // }
+                 }
                 previous_price = price_t;
             }
         }
