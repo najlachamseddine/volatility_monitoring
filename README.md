@@ -19,8 +19,8 @@ To add a new on chain `ETH/USDC` V3 pool to listen to, a new `Pool` object needs
 Prices from on chain and off chain sources are sent through channel. The data is processed by a unique receiver, thus the use of `mpsc::channel`. In case we want to process the two datas sources independantly we would use a `broadcast::channel`.
 
 * Each minute, the average of the data off/on chain is computed. We get a price at time `t`.
-* We compute the log return `ln_return(t)` between the price at time `t` and the price at time `t-1` each minute.
-* These log returns are stored in a vector to be able to compute the mean at every interval of time (i.e each minute). The maximum time window is 6 hours.
+* We compute the log return `ln_return(t)` between the price at time `t` and the price at time `t-1`, each minute.
+* These log returns are stored in a vector to be able to compute the mean at every time interval (i.e each minute). The maximum time window is 6 hours. After 6 hours has elapsed, FIFO is used to get a scroll time window.
 * The standard deviation per minute is computed on the log returns
-*  To get the volatility on 6 hours, we multiply the last result by the sqrt of the time window (i.e sqrt(360) for 6 hours)
+* To get the volatility on 6 hours, we multiply the standard deviation per minute by the square root of the time window (i.e sqrt(360) for 6 hours)
 
