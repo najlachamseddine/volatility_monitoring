@@ -34,10 +34,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
     tokio::spawn(async move {
         loop {
             println!(
-                "--------Current Volatility Estimation: {}%--------",
+                "--------New minute: Current Volatility Estimation: {}%--------",
                 current_volatility_estimation
             );
-            println!("--------Waiting for one minute to elapse--------");
             tokio::time::sleep(interval).await;
             let mut p = prices_minutes_clone.lock().unwrap();
             if p.len() > 0 {
