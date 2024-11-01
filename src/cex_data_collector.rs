@@ -7,7 +7,6 @@ use rust_decimal::Decimal;
 use serde_json::Value;
 use std::str::FromStr;
 use tokio::sync::mpsc::Sender;
-use tokio::time::{sleep, Duration};
 use tokio_tungstenite::{connect_async, tungstenite::client::IntoClientRequest};
 use tracing::{error, info};
 
