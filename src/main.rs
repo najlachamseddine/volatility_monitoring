@@ -30,6 +30,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     set_up(tx).await?;
 
+    println!("Exact estimates start to displaying after 2 minutes.\n");
+
     let prices_minutes_clone = prices_in_minute.clone();
     tokio::spawn(async move {
         loop {
@@ -58,10 +60,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         );
                         current_volatility_estimation = variance * 100.0;
                     }
-                    previous_price = price_t;
-                } else {
-                    previous_price = price_t;
-                }
+                    // previous_price = price_t;
+                 } // else {
+                    // previous_price = price_t;
+                // }
+                previous_price = price_t;
             }
         }
     });
