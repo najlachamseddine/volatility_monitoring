@@ -20,13 +20,13 @@ const BINANCE_WSS_URL: &str = "wss://stream.binance.com:9443/ws/ethusdc@kline_1s
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     let (tx, mut rx): (Sender<PriceData>, Receiver<PriceData>) = mpsc::channel(32);
-    let period: usize = 360;
+    let period: usize = 60;
     let interval = Duration::from_secs(60);
     let prices_in_minute = Arc::new(Mutex::new(Vec::new()));
     let mut _prices_in_period: Vec<f64> = Vec::new();
     let ln_returns = Arc::new(Mutex::new(VecDeque::new()));
     let mut previous_price = f64::from(-1);
-    let mut current_volatility_estimation = 0.0;
+    let mut current_volatility_estimation = 0.1;
 
     set_up(tx).await?;
 
@@ -54,11 +54,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     println!(
                         "{:#?} New Estimated Volatility: {}%",
                         Local::now(),
-                        (variance * 100f64)
+                        (variance * 100_f64)
                     );
                     println!("-------------------------------------------------------------------");
                     previous_price = price_t;
-                    current_volatility_estimation = variance * 100f64;
+                    current_volatility_estimation = variance * 100_f64;
                 } else {
                     previous_price = price_t;
                 }
