@@ -20,7 +20,7 @@ const BINANCE_WSS_URL: &str = "wss://stream.binance.com:9443/ws/ethusdc@kline_1s
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     let (tx, mut rx): (Sender<PriceData>, Receiver<PriceData>) = mpsc::channel(32);
-    let period: usize = 60;
+    let period = 360;
     let interval = Duration::from_secs(60);
     let prices_in_minute = Arc::new(Mutex::new(Vec::new()));
     let mut _prices_in_period: Vec<f64> = Vec::new();
@@ -34,7 +34,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     tokio::spawn(async move {
         loop {
             println!(
-                "--------New minute: Current Volatility Estimation: {}%--------",
+                "--------New interval: Current Volatility Estimation: {:.4}%--------\n",
                 current_volatility_estimation
             );
             tokio::time::sleep(interval).await;
@@ -42,7 +42,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             if p.len() > 0 {
                 let price_t: f64 = p.iter().sum::<f64>() / (p.len() as f64);
                 p.clear();
-                if previous_price >= f64::from(0) {
+                if previous_price > f64::from(0) {
                     let ln_price_t = compute_ln_return(previous_price, price_t);
                     let mut ln_ret = ln_returns.lock().unwrap();
                     if ln_ret.len() == period {
@@ -50,15 +50,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     }
                     ln_ret.push_back(ln_price_t);
                     let variance = (period as f64).sqrt() * compute_deviation(ln_ret);
-                    println!("-------------------------------------------------------------------");
-                    println!(
-                        "{:#?} New Estimated Volatility: {}%",
-                        Local::now(),
-                        (variance * 100_f64)
-                    );
-                    println!("-------------------------------------------------------------------");
+                    if variance > 0.0 {
+                        println!(
+                            "--------{:#?} New Estimated Volatility: {:.4}% --------\n",
+                            Local::now(),
+                            (variance * 100.0)
+                        );
+                        current_volatility_estimation = variance * 100.0;
+                    }
                     previous_price = price_t;
-                    current_volatility_estimation = variance * 100_f64;
                 } else {
                     previous_price = price_t;
                 }
@@ -67,7 +67,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
     });
 
     while let Some(value) = rx.recv().await {
-        // println!("Dequeued price CEX or DEX: {:?}", value);
         prices_in_minute
             .clone()
             .lock()
